@@ -12,6 +12,10 @@ on:
         description: "Только проверить связь с Telegram"
         type: boolean
         default: false
+      dry_run:
+        description: "Проверить сервисы без сообщений"
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # keepalive: пустой коммит раз в 40 дней
@@ -39,6 +43,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TEST_MESSAGE: ${{ inputs.test_message && '1' || '' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
 
       # состояние сохраняем, только когда оно поменялось: последний сохранённый
       # кэш читается каждые 5 минут и поэтому не вытесняется

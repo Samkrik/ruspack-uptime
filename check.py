@@ -7,7 +7,7 @@
 
 Состояние между запусками — `state/state.json` в кэше GitHub Actions.
 Переменные: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID; TEST_MESSAGE=1 — только
-проверить связь с Telegram.
+проверить связь с Telegram; DRY_RUN=1 — проверить сервисы без сообщений.
 """
 
 import json
@@ -85,6 +85,10 @@ def main() -> int:
     if os.environ.get("TEST_MESSAGE"):
         send("Проверка связи: если сервер портала перестанет отвечать, я напишу "
              "сюда. Проверяю снаружи, с GitHub, раз в 5 минут.")
+        return 0
+    if os.environ.get("DRY_RUN"):
+        for name, url in SERVICES:
+            print(f"{name}: {probe(url) or 'отвечает'}")
         return 0
     state = json.loads(STATE.read_text()) if STATE.exists() else {"down": {}}
     down, now, lines = state["down"], datetime.now(UTC), []
