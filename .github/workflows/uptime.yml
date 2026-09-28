@@ -1,0 +1,62 @@
+# Раз в 5 минут: живы ли портал, мессенджеры и РОП-бот — снаружи, не с их сервера.
+# GitHub запускает расписание с опозданием до 5–15 минут: для «сервер лежит
+# часами» этого хватает.
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_message:
+        description: "Только проверить связь с Telegram"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # keepalive: пустой коммит раз в 40 дней
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: uptime-state-${{ github.run_id }}
+          restore-keys: uptime-state-
+
+      - id: check
+        run: python3 check.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_MESSAGE: ${{ inputs.test_message && '1' || '' }}
+
+      # состояние сохраняем, только когда оно поменялось: последний сохранённый
+      # кэш читается каждые 5 минут и поэтому не вытесняется
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: uptime-state-${{ github.run_id }}
+
+      # GitHub отключает расписание открытого репозитория после 60 дней без
+      # изменений — раз в 40 дней пустой коммит
+      - name: keepalive
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 40 * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive: расписание не отключится"
+            git push
+          fi
